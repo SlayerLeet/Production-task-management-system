@@ -1,23 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from.schemas import TaskAddSchema
 from sqlalchemy import select, delete, update
-from storage import engine, Base, TaskModel, SessionDep
+from bd.bd_core import engine, SessionDep
+from bd.bd_models import Base, TaskModel
 
-router = APIRouter()
+tasks = APIRouter()
 
 
-@router.post("/setup_database")
+@tasks.post("/setup_database")
 async def setup_database():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    return {"ok" : True, "message" : "База данных перезагружена"}
+    return {"ok" : True, "message" : "База  данных перезагружена"}
 
 
 
 # CRUD TASKS
 # -------------------------------------------------------------------------------------------
-@router.get("/tasks/")
+@tasks.get("/tasks/")
 async def get_tasks(session: SessionDep, task_id : int = Query(None)):
     if task_id == None:
         quarry = select(TaskModel)
@@ -27,14 +28,14 @@ async def get_tasks(session: SessionDep, task_id : int = Query(None)):
     return result.scalars().all()
 
 
-@router.get("/tasks/history")
+@tasks.get("/tasks/history")
 async def get_tasks_history(session: SessionDep):
     quarry = select(TaskModel).where(TaskModel.status == 2)
     result = await session.execute(quarry)
     return result.scalars().all()
 
 
-@router.post("/tasks")
+@tasks.post("/tasks")
 async def create_task(data: TaskAddSchema, session : SessionDep):
     new_task = TaskModel(
         org_name = data.org_name,
@@ -50,7 +51,7 @@ async def create_task(data: TaskAddSchema, session : SessionDep):
     return {"ok" : True, "message" : "Задача успешно добавлена"}
 
 
-@router.put("/tasks/{task_id}")
+@tasks.put("/tasks/{task_id}")
 async def update_task(data: TaskAddSchema, task_id : int, session : SessionDep):
     quarry = (update(TaskModel).
               where(TaskModel.id == task_id).
@@ -67,7 +68,7 @@ async def update_task(data: TaskAddSchema, task_id : int, session : SessionDep):
     return {"ok" : True, "message" : "Задача успешно обновлена"}
 
 
-@router.patch("/tasks/next/{task_id}")
+@tasks.patch("/tasks/next/{task_id}")
 async def next_status(task_id : int, session: SessionDep):
     quarry = select(TaskModel).where(TaskModel.id == task_id)
     result = await session.execute(quarry)
@@ -84,7 +85,7 @@ async def next_status(task_id : int, session: SessionDep):
     return {"ok" : True, "message" : "Статус задачи успешно обновлен"}
 
 
-@router.patch("/tasks/prev/{task_id}")
+@tasks.patch("/tasks/prev/{task_id}")
 async def prev_status(task_id : int, session: SessionDep):
     quarry = select(TaskModel).where(TaskModel.id == task_id)
     result = await session.execute(quarry)
@@ -101,7 +102,7 @@ async def prev_status(task_id : int, session: SessionDep):
     return {"ok" : True, "message" : "Статус задачи успешно обновлен"}
 
 
-@router.delete("/tasks/{task_id}")
+@tasks.delete("/tasks/{task_id}")
 async def delete_task(task_id : int, session: SessionDep):
     quarry = delete(TaskModel).where(TaskModel.id == task_id)
     await session.execute(quarry)
